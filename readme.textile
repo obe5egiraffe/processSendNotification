@@ -2,7 +2,7 @@ h1. Send Notification on Page Change in Processwire
 
 h2. Description
 
-Work in progress
+Work in progress. Sandbox only.
 
 
 

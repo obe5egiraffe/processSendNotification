@@ -1,78 +1,121 @@
 <?php 
 namespace ProcessWire;
 
-class ProcessSendNotification extends WireData implements Module {
-	public static function getModuleInfo(){
-		return [
-			'title' => 'Send Notifications',
-			'summary' => 'Sends iOS push notification on page save.',
-            'author' => 'Alyssa Quinney',
-			'version' => 0.0.1,
-			'autoload' => true
+class ProcessSendNotification extends WireData implements Module, ConfigurableModule {
+    public static function getModuleInfo(){
+        return [
+            'title' => 'Send Notifications',
+            'summary' => 'Sends iOS push notification on page save. Sandbox only.',
+            'version' => 1,
+            'autoload' => 'template=admin'
 
-		];
-	}
-	
-    public function init(){
-        $this->addHookAfter('Pages::saveReady', $this, 'sendNotification');
+        ];
     }
+    
+    public function init(){
+            $this->addHookAfter('Pages::saveReady', $this, 'sendNotification');
+    }
+
+    public function getModuleConfigInputfields(InputfieldWrapper $wrapper){
+
+        $deviceToken = $this->modules->InputfieldText;
+        $deviceToken->name = 'device_token';
+        $deviceToken->label = '32 Byte Device Token';
+        $deviceToken->value = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+        $deviceToken->required = true;
+        $wrapper->add($deviceToken);
+
+        $passphrase = $this->modules->InputfieldText;
+        $passphrase->name = 'passphrase';
+        $passphrase->label= 'Pass Phrase';
+        $passphrase->value = 'XXXXXXXXX';
+        $passphrase->required = true;
+        $wrapper->add($passphrase);
+
+        $pushMessage = $this->modules->InputfieldText;
+        $pushMessage->name = 'push_message';
+        $pushMessage->label = 'Message';
+        $pushMessage->value = 'Page has updated!';
+        $pushMessage->required = true;
+        $wrapper->add($pushMessage);
+
+        $pemFile = $this->modules->InputfieldText;
+        $pemFile->name = 'pem_file';
+        $pemFile->label = 'Full path to private key and push certificate';
+        $pemFile->description = 'File must be in module directory.';
+        $pemFile->value = dirname(__FILE__).'/YOURFILENAME.pem';
+        $pemFile->required = true;
+        $wrapper->add($pemFile);
+
+        $caFile = $this->modules->InputfieldText;
+        $caFile->name = 'ca_file';
+        $caFile->label = 'Full path to entrust certificate';
+        $caFile->description = 'File must be in module directory.';
+        $caFile->value = dirname(__FILE__).'/YOURFILENAME.cer';
+        $caFile->required = true;
+        $wrapper->add($caFile);
+
+        return $wrapper;
+
+    }
+
 
     public function sendNotification($event){
-            $page = $event->arguments[0];
+        $page = $event->arguments[0];
 
-            if($page->send_push){
-                //insert 
-                $deviceToken = 'XXXXXXXXXXXXXXXXXXXXXXXX';
-                $passphrase = 'XXXXXXXXXXXXXXXXXXXXXXXX';
-                // Put your alert message here:
-                $message = 'This page has been updated';
-                   ////////////////////////////////////////////////////////////////////////////////
-                
-                $ctx = stream_context_create();
-                //put full file path to certificate - must be in same directory as this file
-                stream_context_set_option($ctx, 'ssl', 'local_cert', 'FULL FILE PATH HERE/modules/processSendNotification/pushcertificate.pem');
-                stream_context_set_option($ctx, 'ssl', 'passphrase', $passphrase);
-                stream_context_set_option($ctx, 'ssl', 'cafile', 'FULL FILE PATH HERE/modules/processSendNotification/entrust.cer');
-                //stream_context_set_option($ctx, 'ssl', 'verify_peer', false);
-                
-                // Open a connection to the APNS server
-                $fp = stream_socket_client(
-                    'ssl://gateway.sandbox.push.apple.com:2195', $err,
-                    $errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx
-                );
-                
-                if (!$fp)
-                exit("Failed to connect: $err $errstr" . PHP_EOL);
-                
-                $this->message('Connected to APNS' . PHP_EOL);
-                
-                // Create the payload body
-                $body['aps'] = array(
-                    'alert' => $message,
-                    'sound' => 'default',
-                    'badge' => '1',
-                    'content-available' => '1'
-                );
-                
-                // Encode the payload as JSON
-                $payload = json_encode($body);
-                
-                // Build the binary notification
-                $msg = chr(0) . pack('n', 32) . pack('H*', $deviceToken) . pack('n', strlen($payload)) . $payload;
-                
-                // Send it to the server
-                $result = fwrite($fp, $msg, strlen($msg));
-                
-                if (!$result)
-                    $this->warning('Push Notification not delivered' . PHP_EOL);
-                else
-                    $this->message('Push Notification successfully delivered' . PHP_EOL);
-                
-                // Close the connection to the server
-                fclose($fp);
+        if($page->send_push){
+            $deviceToken = $this->device_token;
+            $pass_phrase = $this->passphrase;
+            $pemfile = $this->pem_file;
+            $cafile = $this->ca_file;
+           
+            $message = $this->push_message
+            ////////////////////////////////////////////////////////////////////////////////
+            
+            $ctx = stream_context_create();
+            stream_context_set_option($ctx, 'ssl', 'local_cert', $pem_file);
+            stream_context_set_option($ctx, 'ssl', 'passphrase', $pass_phrase);
+            stream_context_set_option($ctx, 'ssl', 'cafile', $ca_file);
+            //stream_context_set_option($ctx, 'ssl', 'verify_peer', false);
+            
+            // Open a connection to the APNS server
+            $fp = stream_socket_client(
+                'ssl://gateway.sandbox.push.apple.com:2195', $err,
+                $errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx
+            );
+            
+            if (!$fp)
+            exit("Failed to connect: $err $errstr" . PHP_EOL);
+            
+            $this->message('Connected to APNS' . PHP_EOL);
+            
+            // Create the payload body
+            $body['aps'] = array(
+                'alert' => $message,
+                'sound' => 'default',
+                'badge' => '1',
+                'content-available' => '1'
+            );
+            
+            // Encode the payload as JSON
+            $payload = json_encode($body);
+            
+            // Build the binary notification
+            $msg = chr(0) . pack('n', 32) . pack('H*', $deviceToken) . pack('n', strlen($payload)) . $payload;
+            
+            // Send it to the server
+            $result = fwrite($fp, $msg, strlen($msg));
+            
+            if (!$result)
+                $this->warning('Push Notification not delivered' . PHP_EOL);
+            else
+                $this->message('Push Notification successfully delivered' . PHP_EOL);
+            
+            // Close the connection to the server
+            fclose($fp);
         }
     }
-	
+    
 }
 
 

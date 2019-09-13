@@ -64,10 +64,10 @@ class ProcessSendNotification extends WireData implements Module, ConfigurableMo
         $page = $event->arguments[0];
 
         if($page->send_push){
-            $deviceToken = $this->device_token;
+            $device_token = $this->device_token;
             $pass_phrase = $this->passphrase;
-            $pemfile = $this->pem_file;
-            $cafile = $this->ca_file;
+            $pem_file = $this->pem_file;
+            $ca_file = $this->ca_file;
            
             $message = $this->push_message
             ////////////////////////////////////////////////////////////////////////////////
@@ -101,7 +101,7 @@ class ProcessSendNotification extends WireData implements Module, ConfigurableMo
             $payload = json_encode($body);
             
             // Build the binary notification
-            $msg = chr(0) . pack('n', 32) . pack('H*', $deviceToken) . pack('n', strlen($payload)) . $payload;
+            $msg = chr(0) . pack('n', 32) . pack('H*', $device_token) . pack('n', strlen($payload)) . $payload;
             
             // Send it to the server
             $result = fwrite($fp, $msg, strlen($msg));

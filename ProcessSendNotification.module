@@ -1,0 +1,78 @@
+<?php 
+namespace ProcessWire;
+
+class ProcessSendNotification extends WireData implements Module {
+	public static function getModuleInfo(){
+		return [
+			'title' => 'Send Notifications',
+			'summary' => 'Sends iOS push notification on page save.',
+            'author' => 'Alyssa Quinney',
+			'version' => 0.0.1,
+			'autoload' => true
+
+		];
+	}
+	
+    public function init(){
+        $this->addHookAfter('Pages::saveReady', $this, 'sendNotification');
+    }
+
+    public function sendNotification($event){
+            $page = $event->arguments[0];
+
+            if($page->send_push){
+                //insert 
+                $deviceToken = 'XXXXXXXXXXXXXXXXXXXXXXXX';
+                $passphrase = 'XXXXXXXXXXXXXXXXXXXXXXXX';
+                // Put your alert message here:
+                $message = 'This page has been updated';
+                   ////////////////////////////////////////////////////////////////////////////////
+                
+                $ctx = stream_context_create();
+                //put full file path to certificate - must be in same directory as this file
+                stream_context_set_option($ctx, 'ssl', 'local_cert', 'FULL FILE PATH HERE/modules/processSendNotification/pushcertificate.pem');
+                stream_context_set_option($ctx, 'ssl', 'passphrase', $passphrase);
+                stream_context_set_option($ctx, 'ssl', 'cafile', 'FULL FILE PATH HERE/modules/processSendNotification/entrust.cer');
+                //stream_context_set_option($ctx, 'ssl', 'verify_peer', false);
+                
+                // Open a connection to the APNS server
+                $fp = stream_socket_client(
+                    'ssl://gateway.sandbox.push.apple.com:2195', $err,
+                    $errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx
+                );
+                
+                if (!$fp)
+                exit("Failed to connect: $err $errstr" . PHP_EOL);
+                
+                $this->message('Connected to APNS' . PHP_EOL);
+                
+                // Create the payload body
+                $body['aps'] = array(
+                    'alert' => $message,
+                    'sound' => 'default',
+                    'badge' => '1',
+                    'content-available' => '1'
+                );
+                
+                // Encode the payload as JSON
+                $payload = json_encode($body);
+                
+                // Build the binary notification
+                $msg = chr(0) . pack('n', 32) . pack('H*', $deviceToken) . pack('n', strlen($payload)) . $payload;
+                
+                // Send it to the server
+                $result = fwrite($fp, $msg, strlen($msg));
+                
+                if (!$result)
+                    $this->warning('Push Notification not delivered' . PHP_EOL);
+                else
+                    $this->message('Push Notification successfully delivered' . PHP_EOL);
+                
+                // Close the connection to the server
+                fclose($fp);
+        }
+    }
+	
+}
+
+

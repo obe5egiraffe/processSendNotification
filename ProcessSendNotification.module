@@ -63,6 +63,7 @@ class ProcessSendNotification extends WireData implements Module, ConfigurableMo
     public function sendNotification($event){
         $page = $event->arguments[0];
 
+        // if send_push checkbox is checked, send notifcation on save
         if($page->send_push){
             $device_token = $this->device_token;
             $pass_phrase = $this->passphrase;

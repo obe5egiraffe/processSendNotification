@@ -3,6 +3,7 @@ h1. Send Notification on Page Change in Processwire
 h2. Description
 
 Work in progress. Sandbox only.
+Add "send_push" checkbox to page to send notifcations after save. 
 
 
 

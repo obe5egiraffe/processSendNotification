@@ -1,10 +1,7 @@
 h1. Send Notification on Page Change
 
 h2. Description
+Work in progress
 
-
-
-
-h2. Installation
 
 
